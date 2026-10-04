@@ -10,10 +10,13 @@ prefixed OpenWebUI connection, and `Private+group` access on its models.
 
 ```
 user-sync/
-├── sync_users.py       # Main sync service (Python)
-├── Dockerfile          # Docker image builder
-├── requirements.txt    # Runtime dependencies
-└── README.md           # This file
+├── sync_users.py          # Main sync service (Python)
+├── Dockerfile             # Docker image builder
+├── requirements.txt       # Runtime dependencies
+├── requirements-dev.txt   # Dev dependencies (pytest)
+├── test_sync_users.py     # Unit tests
+├── .dockerignore
+└── README.md              # This file
 ```
 
 ## What This Does
@@ -38,17 +41,22 @@ name — renaming a group in OpenWebUI renames the Team and reuses the existing 
 
 ## Configuration
 
-All configuration via environment variables (see `.env.example` at the repo root):
+Set values in the repo-root `.env` (see `.env.example`). Compose maps them into the container:
+
+| In `.env` | Inside the container | Notes |
+|---|---|---|
+| `USER_SYNC_INTERVAL` | `SYNC_INTERVAL` | Seconds between sync cycles (default `60`) |
+| `DEFAULT_TEAM_BUDGET` | `DEFAULT_TEAM_BUDGET` | `$` per Team / OpenWebUI group (`.env.example` = `20`; Compose default if unset = `500`) |
+| `DEFAULT_USER_ROLE` | `DEFAULT_USER_ROLE` | Default `internal_user` |
+| `OPENWEBUI_ADMIN_API_KEY` | same | Required — OpenWebUI admin API key (Settings → Account) |
+| `LITELLM_MASTER_KEY` | same | Already required by LiteLLM |
+
+Other container defaults (override only if you change Compose networking):
 
 ```bash
-LITELLM_MASTER_KEY=sk-xxx                  # already in your .env
-OPENWEBUI_ADMIN_API_KEY=your-admin-key     # OpenWebUI admin account API key (Settings > Account)
-LITELLM_URL=http://litellm:4000            # default
-OPENWEBUI_URL=http://open-webui:8080       # default
-OPENWEBUI_DB_PATH=/openwebui-data/webui.db # default
-SYNC_INTERVAL=60                           # seconds, default
-DEFAULT_USER_ROLE=internal_user            # default
-DEFAULT_TEAM_BUDGET=500                    # $, per Team (per OpenWebUI group)
+LITELLM_URL=http://litellm:4000
+OPENWEBUI_URL=http://open-webui:8080
+OPENWEBUI_DB_PATH=/openwebui-data/webui.db
 ```
 
 `OPENWEBUI_ADMIN_API_KEY` is required — unlike plain user sync (SQLite-only), provisioning
@@ -71,6 +79,13 @@ docker compose logs -f user-sync
 docker compose ps user-sync
 ```
 
+## Running Tests
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+pytest test_sync_users.py -v
+```
+
 ## Troubleshooting
 
 **Service exits immediately:** check for "is not set!" in the logs — `LITELLM_MASTER_KEY` or
@@ -89,4 +104,4 @@ docker compose up -d user-sync
 ---
 
 **Version:** 2.0 (Team-based budget/restriction by group)
-**Last Updated:** 2026-09-12
+**Last Updated:** 2026-10-04

@@ -9,8 +9,7 @@ LiteLLM custom callback that tracks the dollar cost (input + output tokens combi
 ```
 cost-tracking/
 ├── litellm_cost_callback.py  # LiteLLM custom callback + cost HTTP server
-├── Dockerfile                 # Extends LiteLLM image with psycopg2-binary
-├── requirements.txt           # Python dependencies
+├── requirements.txt           # Python dependencies (reference; installed via litellm/Dockerfile)
 ├── create_table.sql           # Table schema (reference/DR only — the callback creates it itself, see below)
 └── README.md                  # This file
 ```
@@ -120,4 +119,4 @@ That Filter calls this callback's `GET /cost/latest` endpoint after each respons
 ---
 
 **Version:** 1.0
-**Last Updated:** 2026-06-17
+**Last Updated:** 2026-10-04

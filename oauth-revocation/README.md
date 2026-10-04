@@ -32,7 +32,21 @@ For each match:
   └── Deletes user from LiteLLM
 ```
 
-## Quick Start
+## Quick Start (Compose — recommended)
+
+The service is defined in the root `docker-compose.yml` under the `oauth-revocation` profile
+(`DRY_RUN` defaults to preview-only via `OAUTH_REVOCATION_DRY_RUN` in `.env`):
+
+```bash
+# Preview (no changes applied)
+docker compose --profile oauth-revocation run --rm oauth-revocation
+
+# Apply changes — set in .env first, or override for this run:
+# OAUTH_REVOCATION_DRY_RUN=false
+docker compose --profile oauth-revocation run --rm -e DRY_RUN=false oauth-revocation
+```
+
+## Quick Start (standalone Docker)
 
 ```bash
 # 1. Build the image
@@ -54,24 +68,15 @@ docker run --env-file ../.env \
 
 ## Configuration
 
-All configuration via environment variables:
-
-```bash
-# Azure AD (reuse values from .env)
-MICROSOFT_CLIENT_ID=your-client-id
-MICROSOFT_CLIENT_SECRET=your-client-secret
-MICROSOFT_CLIENT_TENANT_ID=your-tenant-id
-
-# LiteLLM (reuse values from .env)
-LITELLM_MASTER_KEY=sk-xxx
-LITELLM_URL=http://litellm:4000          # default
-
-# OpenWebUI
-OPENWEBUI_DB_PATH=/openwebui-data/webui.db  # default
-
-# Safety
-DRY_RUN=true                             # default — set to false to apply changes
-```
+| In `.env` | Inside the container | Notes |
+|---|---|---|
+| `OAUTH_REVOCATION_DRY_RUN` | `DRY_RUN` | Default `true` (preview only). Set `false` to apply. |
+| `MICROSOFT_CLIENT_ID` | same | Azure app registration |
+| `MICROSOFT_CLIENT_SECRET` | same | |
+| `MICROSOFT_CLIENT_TENANT_ID` | same | |
+| `LITELLM_MASTER_KEY` | same | |
+| *(Compose sets)* | `LITELLM_URL=http://litellm:4000` | |
+| *(Compose sets)* | `OPENWEBUI_DB_PATH=/openwebui-data/webui.db` | Volume mount is read-only |
 
 ## Azure App Registration
 
@@ -112,4 +117,4 @@ Check that the App Registration has the required permissions and that admin cons
 ---
 
 **Version:** 1.1
-**Last Updated:** 2026-05-20
+**Last Updated:** 2026-10-04

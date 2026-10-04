@@ -9,8 +9,8 @@ LiteLLM custom callback that tracks the carbon footprint and energy consumption 
 ```
 ecologits/
 ├── ecologits_callback.py  # LiteLLM custom callback + impact HTTP server
-├── Dockerfile             # Extends LiteLLM image with EcoLogits
-├── requirements.txt       # Python dependencies
+├── requirements.txt       # Python dependencies (reference; installed via litellm/Dockerfile)
+├── create_table.sql       # Table schema (reference/DR only — the callback creates it itself, see below)
 └── README.md              # This file
 ```
 
@@ -129,4 +129,4 @@ That Filter calls this callback's `GET /impacts/latest` endpoint after each resp
 ---
 
 **Version:** 1.1
-**Last Updated:** 2026-06-24
+**Last Updated:** 2026-10-04

@@ -1,12 +1,12 @@
-# AI Box — Self-Hosted AI Infrastructure
+# GenAI Stack — Seminar Code Package
 
-Internal AI platform built for the [Center for Hybrid Intelligence (CHI)](https://chi.au.dk) at Aarhus University. Powers Tech Circle workshops and internal AI experimentation.
+Open-source GenAI Stack materials from the [Center for Hybrid Intelligence (CHI)](https://chi.au.dk) at Aarhus University. This repository is the seminar distribution of the self-hosted stack (OpenWebUI, LiteLLM, optional n8n / MCP / Langfuse).
 
 ## Stack Overview
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      Users / Workshops                  │
+│                   Users / organisations                 │
 └───────────────────────────┬─────────────────────────────┘
                             │
                     ┌───────▼────────┐
@@ -77,17 +77,19 @@ each callback writing to its own table (`LiteLLM_Cost_Tracking`, `EcoLogits_Impa
 
 ## Supported Models
 
+Configured in `litellm-config.yaml` (edit freely). This package ships with:
+
 **Text**
-- OpenAI: GPT-3.5, GPT-5.2, GPT-5.1 (Azure)
-- Anthropic: Claude Haiku 4.5, Opus 4.5, Sonnet 4.6 (with extended thinking)
-- Mistral Small (Azure)
-- Ollama: Llama 3.2 and any locally hosted model
+- OpenAI: GPT-4o / 4.1 / 5.x family, o3 / o4-mini
+- Anthropic: Claude Haiku 4.5, Opus / Sonnet variants (Sonnet 4.6 with extended thinking)
+- Google: Gemini Flash / Pro aliases, Gemma
+- Mistral: Small / Medium / Large, Codestral, Magistral, Ministral, and related aliases
+- Ollama: `llama3.2` (requires the optional `ollama` service)
 
-**Image generation**
-- DALL-E 2, DALL-E 3, GPT Image 1
+**Image**
+- Gemini image models (e.g. `gemini-2.5-flash-image`, `gemini-3-pro-image`)
 
-**Audio**
-- Whisper-1 (STT), TTS-1 (TTS)
+Only models whose provider API key is set in `.env` will work at runtime.
 
 ## Quick Start
 
@@ -146,8 +148,8 @@ Complete creates the `langfuse` database and starts Langfuse. It also enables Li
 Same stack without the installer UI. Prefer `./install.sh` unless you know Compose.
 
 ```bash
-git clone https://github.com/Center-for-Hybrid-Intelligence/owui.git
-cd owui
+git clone https://github.com/Center-for-Hybrid-Intelligence/owui_seminar_code.git
+cd owui_seminar_code
 cp .env.example .env
 # set at least one provider API key; leave secrets as auto where noted
 docker network create ollama_network
@@ -196,7 +198,7 @@ docker compose restart user-sync
 docker compose logs -f user-sync
 ```
 
-`user-sync` creates a LiteLLM Team for that group (`DEFAULT_TEAM_BUDGET`), a virtual key, and an OpenWebUI connection prefixed with the group name. Members see models as `GroupName.gpt-5.4`, and only members of that group can use them. Two groups means two budgets and two model lists.
+`user-sync` creates a LiteLLM Team for that group (`DEFAULT_TEAM_BUDGET` — `.env.example` ships with `20`; Compose falls back to `500` if unset), a virtual key, and an OpenWebUI connection prefixed with the group name. Members see models as `GroupName.gpt-5.4`, and only members of that group can use them. Two groups means two budgets and two model lists.
 
 The team is created with every model allowed. To give a group a smaller set, open http://localhost:4000/ui (user `LITELLM_UI_USERNAME`, password `LITELLM_UI_PASSWORD`) → **Teams** → that team → **Models**. A model left off the list is rejected by LiteLLM. `user-sync` does not refresh that list after the group is first created.
 
@@ -204,7 +206,7 @@ The team is created with every model allowed. To give a group a smaller set, ope
 
 1. Go to `http://localhost:3002`
 2. Create an admin account
-3. Create a project named `ai-box`
+3. Create a project (e.g. `genai-stack`)
 4. Go to **Settings → API Keys** → generate a key pair
 5. Add the keys to your `.env` (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`)
 6. Restart LiteLLM: `docker compose restart litellm`
@@ -229,6 +231,7 @@ The team is created with every model allowed. To give a group a smaller set, ope
 - `init-db.sh` — auto-creates the `litellm` database and user on first postgres boot (reads `LITELLM_DB_PASSWORD` from env)
 - `mcpo/` — optional local Dockerfile (compose uses `ghcr.io/open-webui/mcpo` by default)
 - `functions/` — custom OpenWebUI functions (see [`functions/README.md`](functions/README.md))
+- `scripts/create_loadtest_users.py` / `scripts/test_loadtest_users.py` — optional seminar load / user provisioning helpers
 - `erase.sh` — tear down containers (keeps volumes unless `--wipe-data`)
 
 Every folder above that's its own feature (not just a config file) carries its own `README.md` with
@@ -283,7 +286,7 @@ Postgres directly (`ALTER USER litellm WITH PASSWORD '...'`) and match `.env` to
 
 ## Contributing
 
-1. Clone the repo
+1. Clone [owui_seminar_code](https://github.com/Center-for-Hybrid-Intelligence/owui_seminar_code)
 2. Create a feature branch: `git checkout -b feat/my-feature`
 3. Make your changes
 4. Open a pull request on `main`
