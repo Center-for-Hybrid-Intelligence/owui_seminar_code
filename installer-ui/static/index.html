@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GenAI Stack — Installer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brand-row">
+        <img class="logo" src="/chi-logo.png" width="44" height="44" alt="CHI" />
+        <div>
+          <p class="brand">GenAI Stack</p>
+          <p class="sub">Installer</p>
+        </div>
+      </div>
+      <button type="button" class="btn ghost" id="btnConfigure">Configure</button>
+    </header>
+
+    <main class="main">
+      <p class="status-line">
+        <span id="statusLabel">Checking…</span>
+        <span class="sep">·</span>
+        <span id="pkgVersion">—</span>
+      </p>
+
+      <section class="stair" id="stair" aria-label="Install levels"></section>
+
+      <div class="cta-row">
+        <div class="cta-btns">
+          <button type="button" class="btn primary" id="btnInstall" disabled>Install</button>
+          <button type="button" class="btn danger" id="btnUninstall" disabled>Uninstall</button>
+        </div>
+        <p class="hint" id="installHint"></p>
+      </div>
+
+      <section class="block">
+        <div class="block-head">
+          <h2>Requirements</h2>
+          <span id="reqsBadge" class="badge">…</span>
+        </div>
+        <ul id="reqList" class="req-list"></ul>
+      </section>
+
+      <section class="block" id="progressBlock" hidden>
+        <div class="block-head">
+          <h2>Progress</h2>
+          <span id="progressPct" class="badge">0%</span>
+        </div>
+        <div class="bar" aria-hidden="true"><div class="bar-fill" id="barFill"></div></div>
+        <p class="stage" id="stageLabel">Starting…</p>
+        <div class="log-head">
+          <span>Live log</span>
+          <button type="button" class="linkish" id="btnToggleLog">Hide log</button>
+        </div>
+        <pre id="logView" class="log"></pre>
+      </section>
+    </main>
+  </div>
+
+  <aside class="drawer" id="configDrawer" aria-hidden="true">
+    <div class="drawer-panel">
+      <header class="drawer-head">
+        <div>
+          <h2>Configure</h2>
+          <p>Edits local <code>.env</code>. Provider API keys must be pasted. Passwords left blank are auto-generated on install.</p>
+        </div>
+        <button type="button" class="icon-btn" id="btnConfigClose" aria-label="Close">×</button>
+      </header>
+      <form id="configForm" class="drawer-body">
+        <div id="configGroups"></div>
+        <p class="form-status" id="configStatus" aria-live="polite"></p>
+        <footer class="drawer-foot">
+          <button type="button" class="btn ghost" id="btnConfigCancel">Cancel</button>
+          <button type="submit" class="btn primary" id="btnConfigSave">Save</button>
+        </footer>
+      </form>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <dialog id="alertDialog" class="modal">
+    <div class="alert-body">
+      <h2 id="alertTitle">Notice</h2>
+      <p id="alertMessage"></p>
+      <pre id="alertLog" class="log compact" hidden></pre>
+      <footer class="modal-actions" id="alertActions"></footer>
+    </div>
+  </dialog>
+
+  <dialog id="confirmDialog" class="modal">
+    <form method="dialog" id="confirmForm" class="alert-body">
+      <h2 id="confirmTitle">Confirm</h2>
+      <p id="confirmMessage"></p>
+      <div id="confirmExtra" hidden></div>
+      <footer class="modal-actions">
+        <button type="button" class="btn ghost" id="btnConfirmCancel">Cancel</button>
+        <button type="submit" class="btn primary" id="btnConfirmOk">Confirm</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>

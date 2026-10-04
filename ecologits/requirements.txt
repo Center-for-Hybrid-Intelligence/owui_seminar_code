@@ -1,0 +1,2 @@
+ecologits[litellm]
+psycopg2-binary

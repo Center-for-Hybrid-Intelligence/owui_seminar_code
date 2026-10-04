@@ -1,0 +1,228 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_2
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - ollama_network
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:latest
+    container_name: owui
+    ports:
+      - "${BIND_HOST:-127.0.0.1}:${OPENWEBUI_HOST_PORT:-3001}:8080"
+    volumes:
+      - open_webui_data:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LANG=C.UTF-8
+      - LC_ALL=C.UTF-8
+      - PYTHONIOENCODING=utf-8
+      - PYTHONUNBUFFERED=1
+      - ENABLE_FORWARD_USER_INFO_HEADERS=True
+      #OAUth Microsoft config
+      - WEBUI_URL=${WEBUI_URL}
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
+      - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID}
+      - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET}
+      - MICROSOFT_CLIENT_TENANT_ID=${MICROSOFT_CLIENT_TENANT_ID}
+      - MICROSOFT_REDIRECT_URI=${MICROSOFT_REDIRECT_URI}
+      - OPENID_PROVIDER_URL=${OPENID_PROVIDER_URL}
+      - ENABLE_OAUTH_SIGNUP=${ENABLE_OAUTH_SIGNUP:-true}
+      - OAUTH_MERGE_ACCOUNTS_BY_EMAIL=${OAUTH_MERGE_ACCOUNTS_BY_EMAIL:-false}
+      - ENABLE_OAUTH_PERSISTENT_CONFIG=${ENABLE_OAUTH_PERSISTENT_CONFIG:-false}
+      - OAUTH_UPDATE_PICTURE_ON_LOGIN=${OAUTH_UPDATE_PICTURE_ON_LOGIN:-true}
+      - ENABLE_OAUTH_ID_TOKEN_COOKIE=${ENABLE_OAUTH_ID_TOKEN_COOKIE:-false}
+      - ENABLE_API_KEYS=${ENABLE_API_KEYS:-true} # Required so install/provision can create an admin API key for user-sync
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    networks:
+      - ollama_network
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n_2
+    ports:
+      # Host 5679 → container 5678 (n8n default). Do not set N8N_PORT=5679:
+      # the task broker also defaults to 5679 and will crash-loop.
+      - "${BIND_HOST:-127.0.0.1}:${N8N_HOST_PORT:-5679}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_WEBHOOK_URL=http://n8n:5678/
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-http://localhost:5679}
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5434
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=n8n
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - NODE_FUNCTION_ALLOW_EXTERNAL=youtube-transcript
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - N8N_GIT_NODE_DISABLE_BARE_REPOS=true
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - ollama_network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    ports:
+      - "${BIND_HOST:-127.0.0.1}:${POSTGRES_HOST_PORT:-5434}:5434"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    environment:
+      - POSTGRES_DB=n8n
+      - POSTGRES_USER=n8n
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGPORT=5434
+      - LITELLM_DB_PASSWORD=${LITELLM_DB_PASSWORD}
+    restart: unless-stopped
+    networks:
+      - ollama_network
+
+  litellm:
+    build:
+      context: ./litellm
+      dockerfile: Dockerfile
+    container_name: litellm
+    ports:
+      - "${BIND_HOST:-127.0.0.1}:${LITELLM_HOST_PORT:-4000}:4000"
+      - "${BIND_HOST:-127.0.0.1}:${LITELLM_ECOLOGITS_HOST_PORT:-4001}:4001"  # EcoLogits — only if callback enabled
+      - "${BIND_HOST:-127.0.0.1}:${LITELLM_COST_HOST_PORT:-4002}:4002"  # Cost-tracking — only if callback enabled
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml
+      - ./cost-tracking/litellm_cost_callback.py:/app/litellm_cost_callback.py
+      - ./ecologits/ecologits_callback.py:/app/ecologits_callback.py
+    environment:
+      - DATABASE_URL=postgresql://litellm:${LITELLM_DB_PASSWORD}@postgres:5434/litellm
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - LITELLM_SALT_KEY=${LITELLM_SALT_KEY}
+      - UI_USERNAME=${LITELLM_UI_USERNAME:-admin}
+      - UI_PASSWORD=${LITELLM_UI_PASSWORD}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_HOST=http://langfuse:3000
+      - LITELLM_MODE=PRODUCTION
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "2", "--run_gunicorn", "--max_requests_before_restart", "10000"]
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - ollama_network
+
+  mcpo:
+    # Prebuilt image — avoids a multi-minute local build (nodejs/npm + pip).
+    image: ghcr.io/open-webui/mcpo:main
+    container_name: mcpo
+    # Host port via MCPO_HOST_PORT (default 8001 — host 8000 is often taken).
+    ports:
+      - "${BIND_HOST:-127.0.0.1}:${MCPO_HOST_PORT:-8001}:8000"
+    # Image ENTRYPOINT is mcpo. Pin mcp<2 for mcp-server-fetch compatibility.
+    command:
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --
+      - uvx
+      - --with
+      - "mcp<2"
+      - mcp-server-fetch
+    restart: unless-stopped
+    networks:
+      - ollama_network
+
+  user-sync:
+    build:
+      context: ./user-sync
+      dockerfile: Dockerfile
+    container_name: user-sync
+    restart: unless-stopped
+    environment:
+      - OPENWEBUI_URL=http://open-webui:8080
+      - LITELLM_URL=http://litellm:4000
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - OPENWEBUI_ADMIN_API_KEY=${OPENWEBUI_ADMIN_API_KEY}
+      - SYNC_INTERVAL=${USER_SYNC_INTERVAL:-60}
+      - DEFAULT_USER_ROLE=${DEFAULT_USER_ROLE:-internal_user}
+      - DEFAULT_TEAM_BUDGET=${DEFAULT_TEAM_BUDGET:-500}
+    volumes:
+      - open_webui_data:/openwebui-data:ro
+    networks:
+      - ollama_network
+    depends_on:
+      - open-webui
+      - litellm
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  oauth-revocation:
+    build:
+      context: ./oauth-revocation
+      dockerfile: Dockerfile
+    container_name: oauth-revocation
+    profiles: ["oauth-revocation"]  # on-demand: `docker compose --profile oauth-revocation run --rm oauth-revocation`
+    environment:
+      - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID}
+      - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET}
+      - MICROSOFT_CLIENT_TENANT_ID=${MICROSOFT_CLIENT_TENANT_ID}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - LITELLM_URL=http://litellm:4000
+      - OPENWEBUI_DB_PATH=/openwebui-data/webui.db
+      - DRY_RUN=${OAUTH_REVOCATION_DRY_RUN:-true}
+    volumes:
+      - open_webui_data:/openwebui-data:ro
+    networks:
+      - ollama_network
+    depends_on:
+      - open-webui
+      - litellm
+
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: langfuse
+    ports:
+      - "${BIND_HOST:-127.0.0.1}:${LANGFUSE_HOST_PORT:-3002}:3000"
+    environment:
+      - DATABASE_URL=postgresql://n8n:${POSTGRES_PASSWORD}@postgres:5434/langfuse
+      - NEXTAUTH_SECRET=${WEBUI_SECRET_KEY}
+      - SALT=${LITELLM_SALT_KEY}
+      - NEXTAUTH_URL=${LANGFUSE_URL:-http://localhost:3002}
+      - TELEMETRY_ENABLED=false
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - ollama_network
+
+volumes:
+  ollama_data:
+  open_webui_data:
+  n8n_data:
+  postgres_data:
+
+
+networks:
+  ollama_network:
+    driver: bridge
+    external: true
+    name: ollama_network

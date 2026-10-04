@@ -1,0 +1,68 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Docker
+docker-compose.override.yml
+
+# genaistack installer runtime (generated on install)
+genaistack/litellm-config.runtime.yaml
+genaistack/docker-compose.genaistack.yml
+genaistack/.genaistack-mount-check
+.genaistack-state
+
+# SSL certificates and private keys
+*.pem
+*.key
+*.crt
+certbot/conf/
+certbot/www/
+certbot/logs/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+nul
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Videos (often large)
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code worktrees
+.claude-worktrees/

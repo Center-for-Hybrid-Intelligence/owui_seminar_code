@@ -1,0 +1,92 @@
+[← back to main README](../README.md)
+
+# User Sync Service
+
+Background service that keeps LiteLLM in sync with OpenWebUI: creates/updates users, and
+provisions one LiteLLM Team per OpenWebUI group — each with its own budget, virtual key,
+prefixed OpenWebUI connection, and `Private+group` access on its models.
+
+## Package Contents
+
+```
+user-sync/
+├── sync_users.py       # Main sync service (Python)
+├── Dockerfile          # Docker image builder
+├── requirements.txt    # Runtime dependencies
+└── README.md           # This file
+```
+
+## What This Does
+
+```
+OpenWebUI users/groups (read from SQLite, every SYNC_INTERVAL)
+         |
+    ┌────┴────┐
+    |         |
+ Users     Groups
+    |         |
+Create/update  For each group without a matching Team:
+LiteLLM users  ├─ Create a LiteLLM Team (budget = DEFAULT_TEAM_BUDGET)
+(no individual ├─ Generate a Team-scoped virtual key
+ budget - it's  ├─ Create an OpenWebUI connection prefixed "<group>." using that key
+ on the Team)   └─ Set Private+group access_grants on every model behind it
+```
+
+Groups are matched to Teams by a stable `openwebui_group_id` in the Team's metadata, not by
+name — renaming a group in OpenWebUI renames the Team and reuses the existing key/connection
+(no orphaned connection, no new key generated).
+
+## Configuration
+
+All configuration via environment variables (see `.env.example` at the repo root):
+
+```bash
+LITELLM_MASTER_KEY=sk-xxx                  # already in your .env
+OPENWEBUI_ADMIN_API_KEY=your-admin-key     # OpenWebUI admin account API key (Settings > Account)
+LITELLM_URL=http://litellm:4000            # default
+OPENWEBUI_URL=http://open-webui:8080       # default
+OPENWEBUI_DB_PATH=/openwebui-data/webui.db # default
+SYNC_INTERVAL=60                           # seconds, default
+DEFAULT_USER_ROLE=internal_user            # default
+DEFAULT_TEAM_BUDGET=500                    # $, per Team (per OpenWebUI group)
+```
+
+`OPENWEBUI_ADMIN_API_KEY` is required — unlike plain user sync (SQLite-only), provisioning
+Team connections and model access grants calls OpenWebUI's admin API.
+
+## How It Works
+
+1. Reads users and groups from OpenWebUI's SQLite database (read-only mount)
+2. Creates any user missing in LiteLLM (no budget — budget lives on the Team); updates
+   name/email if changed
+3. For each group: finds or creates its LiteLLM Team, ensures it has a virtual key connected
+   to OpenWebUI under a `<group-name>.` prefix, and sets `Private+group` access on every
+   model exposed through that connection
+4. Repeats every `SYNC_INTERVAL` seconds
+
+## Monitoring
+
+```bash
+docker compose logs -f user-sync
+docker compose ps user-sync
+```
+
+## Troubleshooting
+
+**Service exits immediately:** check for "is not set!" in the logs — `LITELLM_MASTER_KEY` or
+`OPENWEBUI_ADMIN_API_KEY` missing, or the OpenWebUI DB volume not mounted.
+
+**A group never gets provisioned:** check `docker compose logs user-sync` for `❌` lines —
+most failures are OpenWebUI/LiteLLM API errors (bad admin key, LiteLLM not reachable yet).
+
+**Full reset:**
+```bash
+docker compose down user-sync
+docker compose build --no-cache user-sync
+docker compose up -d user-sync
+```
+
+---
+
+**Version:** 2.0 (Team-based budget/restriction by group)
+**Last Updated:** 2026-09-12
